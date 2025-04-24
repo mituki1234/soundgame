@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>beatclone</title>
+</head>
+<body>
+	<canvas id="gameCanvas" width="500" height="400"></canvas>
+</body>
+<script>
+	const canvas = document.getElementById("gameCanvas");
+	const ctx = canvas.getContext("2d");
+	let BPM = 240;
+	let scrollSpeed = 10;
+	let notesDistance = 140 * (60 / BPM) * (scrollSpeed / 2)
+	let scrollStartY = -600;
+	let notesPosition = {}
+	let Lanes = [
+		{x:190,y:350,height:12,width:40},
+		{x:230,y:350,height:12,width:40},
+		{x:270,y:350,height:12,width:40},
+		{x:310,y:350,height:12,width:40},
+	]
+	let parsedHumen = [
+		[
+			"0001",
+			"0010",
+			"0100",
+			"1000",
+			"0001",
+			"0010",
+			"0100",
+			"1000",
+			"0001",
+			"0010",
+			"0100",
+			"1000",
+			"0001",
+			"0010",
+			"0100",
+			"1000",
+		],
+		[
+			"0000",
+			"1001",
+						"1001",
+						"1001",
+		]
+	]
+	
+	function drawHumen() {
+		for(let i=0; i<parsedHumen.length; i++){
+			const measureNotes = parsedHumen[i].length;
+			const measureHeight = notesDistance * 4; // Standard measure height
+			
+			for(let j=0; j<measureNotes; j++){
+				// Calculate position based on number of notes in the measure
+				// This ensures triplets or eighth notes are properly spaced
+				const notePosition = j / measureNotes;
+				
+				for(let k=0; k<parsedHumen[i][j].length; k++){
+					const down = parsedHumen[i][j][k];
+					if(down == 1) {
+						ctx.strokeStyle = "white";
+						ctx.lineWidth = 4;
+						
+						// Calculate Y position based on measure and note position within measure
+						const notesY = scrollStartY - (i * measureHeight) + (notePosition * -measureHeight);
+						
+						// Only draw notes that are on screen
+						if(notesY > -50 && notesY < canvas.height + 50) {
+							ctx.strokeRect(Lanes[k].x, notesY, Lanes[k].width, Lanes[k].height);
+							ctx.strokeRect(Lanes[k].x - 5, notesY, Lanes[k].width, Lanes[k].height);
+						}
+					}
+				}
+			}
+		}
+		scrollStartY += scrollSpeed;
+		
+		// Draw lane target lines
+		ctx.strokeStyle = "#444";
+		ctx.lineWidth = 2;
+		for(let i=0; i<Lanes.length; i++) {
+			ctx.strokeRect(Lanes[i].x, Lanes[i].y, Lanes[i].width, Lanes[i].height);
+		}
+		
+		// Display rhythm type for debugging
+		ctx.fillStyle = "white";
+		ctx.font = "12px Arial";
+		for(let i=0; i<parsedHumen.length; i++) {
+			const measureNotes = parsedHumen[i].length;
+			let rhythmType = "";
+			if(measureNotes === 3) {
+				rhythmType = "Triplets";
+			} else if(measureNotes === 8) {
+				rhythmType = "Eighth Notes";
+			} else if(measureNotes === 4) {
+				rhythmType = "Quarter Notes";
+			} else {
+				rhythmType = `${measureNotes} notes`;
+			}
+			
+			const y = 20 + i * 20;
+			ctx.fillText(`Measure ${i+1}: ${rhythmType}`, 10, y);
+		}
+	}
+	
+	// Reset scroll position when notes go too far down
+	function checkScrollReset() {
+		const totalMeasures = parsedHumen.length;
+		const totalHeight = totalMeasures * notesDistance * 4;
+		
+		if(scrollStartY > canvas.height + totalHeight) {
+			scrollStartY = -600;
+		}
+	}
+	
+	setInterval(() => {
+		ctx.fillStyle = "black";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		drawHumen();
+		checkScrollReset();
+	}, 1000 / 60);
+</script>
+</html>このプログラムに判定システムを設けるにはどうすればいいですか？
