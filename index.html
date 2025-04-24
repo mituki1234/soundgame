@@ -2,124 +2,151 @@
 <html>
 <head>
 	<title>beatclone</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Fira+Code:wght@300..700&family=Noto+Sans+JP&display=swap" rel="stylesheet">
 </head>
 <body>
 	<canvas id="gameCanvas" width="500" height="400"></canvas>
 </body>
 <script>
-	const canvas = document.getElementById("gameCanvas");
-	const ctx = canvas.getContext("2d");
-	let BPM = 240;
-	let scrollSpeed = 10;
-	let notesDistance = 140 * (60 / BPM) * (scrollSpeed / 2)
-	let scrollStartY = -600;
-	let notesPosition = {}
-	let Lanes = [
-		{x:190,y:350,height:12,width:40},
-		{x:230,y:350,height:12,width:40},
-		{x:270,y:350,height:12,width:40},
-		{x:310,y:350,height:12,width:40},
-	]
-	let parsedHumen = [
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const BPM = 200;
+const scrollSpeed = 10;
+const notesDistance = 140 * (60 / BPM) * (scrollSpeed / 2);
+const judgmentLineY = 350;
+const hitWindow = 50;
+let combo = 0;
+
+const Lanes = [
+	{x: 190, y: 350, height: 12, width: 40},
+	{x: 230, y: 350, height: 12, width: 40},
+	{x: 270, y: 350, height: 12, width: 40},
+	{x: 310, y: 350, height: 12, width: 40},
+];
+
+const parsedHumen = [
+	[
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+	],
 		[
-			"0001",
-			"0010",
-			"0100",
-			"1000",
-			"0001",
-			"0010",
-			"0100",
-			"1000",
-			"0001",
-			"0010",
-			"0100",
-			"1000",
-			"0001",
-			"0010",
-			"0100",
-			"1000",
-		],
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+	],
 		[
-			"0000",
-			"1001",
-						"1001",
-						"1001",
-		]
-	]
-	
-	function drawHumen() {
-		for(let i=0; i<parsedHumen.length; i++){
-			const measureNotes = parsedHumen[i].length;
-			const measureHeight = notesDistance * 4; // Standard measure height
-			
-			for(let j=0; j<measureNotes; j++){
-				// Calculate position based on number of notes in the measure
-				// This ensures triplets or eighth notes are properly spaced
-				const notePosition = j / measureNotes;
-				
-				for(let k=0; k<parsedHumen[i][j].length; k++){
-					const down = parsedHumen[i][j][k];
-					if(down == 1) {
-						ctx.strokeStyle = "white";
-						ctx.lineWidth = 4;
-						
-						// Calculate Y position based on measure and note position within measure
-						const notesY = scrollStartY - (i * measureHeight) + (notePosition * -measureHeight);
-						
-						// Only draw notes that are on screen
-						if(notesY > -50 && notesY < canvas.height + 50) {
-							ctx.strokeRect(Lanes[k].x, notesY, Lanes[k].width, Lanes[k].height);
-							ctx.strokeRect(Lanes[k].x - 5, notesY, Lanes[k].width, Lanes[k].height);
-						}
-					}
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+		"0001", "0010", "0100", "1000",
+	],
+		[
+		"0001", "0110", "0110", "1000",
+		"0001", "0010", "0100", "1000",
+	],
+];
+
+let activeNotes = [];
+
+// 1度だけノーツを展開
+function initializeNotes() {
+	for (let measureIndex = 0; measureIndex < parsedHumen.length; measureIndex++) {
+		const notes = parsedHumen[measureIndex];
+		const measureHeight = notesDistance * 4;
+
+		for (let noteIndex = 0; noteIndex < notes.length; noteIndex++) {
+			const noteString = notes[noteIndex];
+			const positionInMeasure = noteIndex / notes.length;
+			const noteY = -(measureIndex * measureHeight) + (-measureHeight * positionInMeasure);
+
+			for (let lane = 0; lane < noteString.length; lane++) {
+				if (noteString[lane] === '1') {
+					activeNotes.push({
+						lane: lane,
+						y: noteY,
+						hit: false
+					});
 				}
 			}
 		}
-		scrollStartY += scrollSpeed;
-		
-		// Draw lane target lines
-		ctx.strokeStyle = "#444";
-		ctx.lineWidth = 2;
-		for(let i=0; i<Lanes.length; i++) {
-			ctx.strokeRect(Lanes[i].x, Lanes[i].y, Lanes[i].width, Lanes[i].height);
+	}
+}
+
+function drawNotesAndScroll() {
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	// ノーツ描画とスクロール処理
+	for (let note of activeNotes) {
+		note.y += scrollSpeed;
+		if (!note.hit && note.y > -50 && note.y < canvas.height + 50) {
+			ctx.strokeStyle = "white";
+			ctx.lineWidth = 4;
+			const laneX = Lanes[note.lane].x;
+			const laneW = Lanes[note.lane].width;
+			const laneH = Lanes[note.lane].height;
+			ctx.strokeRect(laneX, note.y, laneW, laneH);
+			ctx.strokeRect(laneX + 5, note.y, laneW - 10, laneH);
 		}
-		
-		// Display rhythm type for debugging
-		ctx.fillStyle = "white";
-		ctx.font = "12px Arial";
-		for(let i=0; i<parsedHumen.length; i++) {
-			const measureNotes = parsedHumen[i].length;
-			let rhythmType = "";
-			if(measureNotes === 3) {
-				rhythmType = "Triplets";
-			} else if(measureNotes === 8) {
-				rhythmType = "Eighth Notes";
-			} else if(measureNotes === 4) {
-				rhythmType = "Quarter Notes";
-			} else {
-				rhythmType = `${measureNotes} notes`;
+	}
+
+	// 判定ライン描画
+	ctx.strokeStyle = "#444";
+	ctx.lineWidth = 2;
+	for (let lane of Lanes) {
+		ctx.strokeRect(lane.x, lane.y, lane.width, lane.height);
+	}
+	ctx.font = "24px 'DotGothic16'";
+ctx.fillStyle = "yellow";
+ctx.fillText(combo, 150, 100);
+}
+
+// 判定処理
+function checkHit(laneIndex) {
+	for (let note of activeNotes) {
+		if (!note.hit && note.lane === laneIndex) {
+			const diff = Math.abs(note.y - judgmentLineY);
+			if (diff < hitWindow) {
+				note.hit = true;
+				if (diff < 10) {
+					console.log("Perfect!");
+				} else if(diff < 20){
+					console.log("Great!");
+				} else if(diff < 40) {
+					console.log("Good!")
+				} else {
+					console.log("bad");
+				}
+				combo++;
+				return;
 			}
-			
-			const y = 20 + i * 20;
-			ctx.fillText(`Measure ${i+1}: ${rhythmType}`, 10, y);
 		}
 	}
-	
-	// Reset scroll position when notes go too far down
-	function checkScrollReset() {
-		const totalMeasures = parsedHumen.length;
-		const totalHeight = totalMeasures * notesDistance * 4;
-		
-		if(scrollStartY > canvas.height + totalHeight) {
-			scrollStartY = -600;
-		}
+	combo = 0;
+	console.log("Miss!");
+
+}
+
+document.addEventListener('keydown', (e) => {
+	const key = e.key.toLowerCase();
+	let laneIndex = -1;
+	if (key === 'd') laneIndex = 0;
+	else if (key === 'f') laneIndex = 1;
+	else if (key === 'j') laneIndex = 2;
+	else if (key === 'k') laneIndex = 3;
+
+	if (laneIndex >= 0) {
+		checkHit(laneIndex);
 	}
-	
-	setInterval(() => {
-		ctx.fillStyle = "black";
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
-		drawHumen();
-		checkScrollReset();
-	}, 1000 / 60);
+});
+
+// 初期化とゲームループ
+initializeNotes();
+setInterval(drawNotesAndScroll, 1000 / 60);
 </script>
-</html>このプログラムに判定システムを設けるにはどうすればいいですか？
+</html>
